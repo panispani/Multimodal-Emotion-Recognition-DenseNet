@@ -54,6 +54,17 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size=3
         output = dropout(output, is_training)
     return output
 
+def add_internal_layer(inputs, growth_rate, is_training):
+   """Perform H_l composite function for the layer and after concatenate
+      input with output from composite function.
+   """
+   # kernel size is 3
+   # If we used Bottleneck we would include a 1x1 convolution here first
+   output = composite_nonlinearfunction(inputs, growth_rate, is_training, 3)
+   # TODO axis is the dimension along which to concatate, I think this will have to change if we don't work with images
+   output = tf.concat(axis=3, values=(inputs, output))
+   return output
+
 def denseNet(inputs,
              num_classes=None,
              is_training=True,
