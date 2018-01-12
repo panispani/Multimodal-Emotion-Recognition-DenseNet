@@ -28,7 +28,6 @@ def convolution2d(inputs, kernel_size, out_channels):
     """
     strides = [1, 1, 1, 1]
     in_channels = int(inputs.get_shape()[-1])
-    out_channels = 16
     kernel = tf.get_variable(
       name='kernel',
       shape=[kernel_size, kernel_size, in_channels, out_channels],
@@ -54,3 +53,45 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size=3
 
         output = dropout(output, is_training)
     return output
+
+def denseNet(inputs,
+             num_classes=None,
+             is_training=True,
+             depth=40,
+             growth_rate=12,
+             total_blocks=3):
+
+    """Creates the densnet model.
+    Args:
+        inputs: A tensor that contains the input.
+        num_classes: Number of predicted classes for classification tasks
+        is_training : if the model is in training mode
+        depth       : number of layers in the DenseNet
+        growth_rate : growth rate in the DenseNet
+        total_blocks: total dense blocks in the DenseNet
+    Returns:
+        The densenet model.
+    """
+    # out_features is 16 or 2 * growth_rate for DenseNet-BC
+    # kernel size is 3 for the first convolution
+    out_features = 2 * growth_rate
+    with tf.variable_scope("Initial_Convolution"):
+        densenet = convolution2d(inputs, 3, out_features)
+
+    # Add 'total_blocks' blocks to the densenet
+    layers_per_block = int((depth - (total_blocks + 1)) / total_blocks)
+
+    for i in range(total_blocks):
+        # If this is not the first block to be added, add a transition layer before it
+        if i != 0:
+            with tf.variable_scope("Transition_Layer_" + str(i)):
+                densenet = add_transition_layer(densenet, is_training)
+
+        with tf.variable_scope("Block_" + str(i)):
+            for j in range(layers_per_block):
+                with tf.variable_scope("Inner_Layer_" + str(j)):
+                    densenet = add_internal_layer(densenet, growth_rate, is_training)
+
+    with tf.variable_scope("Transition_layer_to_classes"):
+        densenet = add_transition_layer_to_classes(densenet, is_training)
+    return densenet
