@@ -2,6 +2,7 @@ import tensorflow as tf
 
 
 # NOTE: As of now this implementation does not use Compression or Bottleneck.
+# Small concern, is_training is passed everywhere, we could just define a global variable
 
 # This can be set to 0 and dropout will be removed
 drop_rate = 0.2
@@ -52,6 +53,30 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size=3
         output = convolution2d(output, kernel_size, out_channels)
 
         output = dropout(output, is_training)
+    return output
+
+def add_transition_layer_to_classes(inputs, is_training):
+    """Last transition to get to classes
+    - BN
+    - ReLU
+    - Global average pooling
+    - FC layer multiplication - This is done outside the model?
+    """
+    # BN
+    output = tf.contrib.layers.batch_norm(
+                inputs, scale=True, is_training=is_training, updates_collections=None)
+    # ReLU
+    output = tf.nn.relu(output)
+
+    # Global average pooling
+    # In the official implementation the pool_size is set to 7 or 8 according to the dataset
+    pool_size = 7
+    window = [1, pool_size, pool_size, 1]
+    strides = [1, pool_size, pool_size, 1]
+    padding = 'VALID'
+    output = tf.nn.avg_pool(output, window, strides, padding)
+
+    # Is there something more to be done here? TODO
     return output
 
 def add_transition_layer(inputs, is_training):
