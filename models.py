@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+from denseNet import *
 
 from tensorflow.contrib.slim.nets import resnet_v1
 
@@ -40,12 +41,22 @@ def recurrent_model(net, hidden_units=256, number_of_outputs=2):
 
     return tf.reshape(prediction, (batch_size, seq_length, number_of_outputs))
 
-def video_model(video_frames=None, audio_frames=None, is_training=True):
+def get_video_model(video_input, is_resnet=True, is_training=True, depth=40, growth_rate=12, total_blocks=3):
+    if is_resnet:
+        return resnet_v1.resnet_v1_50(video_input, None, is_training)
+    else:
+        return denseNet(video_input, None, is_training, depth, growth_rate, total_blocks)
+
+def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40, growth_rate=12, total_blocks=3):
     """Creates the video model.
 
     Args:
         video_frames: A tensor that contains the video input.
         audio_frames: not needed (leave None).
+        is_training : if the model is in training mode
+        depth       : number of layers if we use a DenseNet
+        growth_rate : growth rate if we use a DenseNet
+        total_blocks: total dense blocks if we use a DenseNet
     Returns:
         The video model.
     """
@@ -56,9 +67,17 @@ def video_model(video_frames=None, audio_frames=None, is_training=True):
         video_input = tf.reshape(video_frames, (batch_size * seq_length, height, width, channels))
         video_input = tf.cast(video_input, tf.float32)
 
-        features, end_points = resnet_v1.resnet_v1_50(video_input, None, is_training)
-        features = tf.reshape(features, (batch_size, seq_length, int(features.get_shape()[3])))
-
+        is_resnet = False
+        if is_resnet:
+            features, end_points = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks)
+            features = tf.reshape(features, (batch_size, seq_length, int(features.get_shape()[3])))
+        else:
+            features = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks)
+            # TODO review this again. Thought was:
+            # The shape of the features here is (100,3,3,456)
+            # In the resnet case it's (100,1,1,2048) and we reshape to (50,2,2048)
+            # If we want to reshape to the form (50, 2, X) from (100,3,3,208) we have to pick (50, 2, 456*9)=(50,2,4104)
+            features = tf.reshape(features, (batch_size, seq_length, 9 * int(features.get_shape()[3])))
     return features
 
 def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_filters=40):
@@ -67,6 +86,7 @@ def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_fil
     Args:
         video_frames: not needed (leave None).
         audio_frames: A tensor that contains the audio input.
+        is_training : if the model is in training mode
         conv_filters: The number of convolutional filters to use.
     Returns:
         The audio model.
