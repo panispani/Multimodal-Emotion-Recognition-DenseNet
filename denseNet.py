@@ -54,6 +54,21 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size=3
         output = dropout(output, is_training)
     return output
 
+def add_transition_layer(inputs, is_training):
+    """Perform BN + ReLU + conv2D with 1x1 kernel + 2x2 avg pooling
+       ReLU is not specified in the paper but it's included in the official implementation
+    """
+    # Densenet-C, if we used compression here would take place and be out_features = out_features * compression_theta
+    out_features = int(inputs.get_shape()[-1])
+    output = composite_nonlinearfunction(inputs, out_features, is_training, 1)
+
+    # 2 x 2 average pooling
+    window = [1, 2, 2, 1]
+    strides = [1, 2, 2, 1]
+    padding = 'VALID'
+    output = tf.nn.avg_pool(output, window, strides, padding)
+    return output
+
 def add_internal_layer(inputs, growth_rate, is_training):
    """Perform H_l composite function for the layer and after concatenate
       input with output from composite function.
