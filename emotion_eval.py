@@ -9,7 +9,7 @@ import losses
 import math
 import metrics
 
-from menpo.visualize import print_progress
+#from menpo.visualize import print_progress
 from pathlib import Path
 from tensorflow.python.platform import tf_logging as logging
 
@@ -19,8 +19,8 @@ slim = tf.contrib.slim
 # Create FLAGS
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 1, 'The batch size to use.')
-tf.app.flags.DEFINE_string('model', 'both','Which model is going to be used: audio, video, or both ')
-tf.app.flags.DEFINE_string('dataset_dir', 'path_to_tfrecords', 'The tfrecords directory.')
+tf.app.flags.DEFINE_string('model', 'video','Which model is going to be used: audio, video, or both ')
+tf.app.flags.DEFINE_string('dataset_dir', 'tf_records', 'The tfrecords directory.')
 tf.app.flags.DEFINE_string('checkpoint_dir', 'ckpt/train', 'The directory that contains the saved model.')
 tf.app.flags.DEFINE_string('log_dir', 'ckpt/log', 'The directory to save log files.')
 tf.app.flags.DEFINE_integer('num_examples', 1000, 'The number of examples in the data set')
@@ -48,8 +48,8 @@ def evaluate(data_folder):
     # Define model graph.
     with slim.arg_scope([slim.batch_norm, slim.layers.dropout],
           is_training=False):
-      with slim.arg_scope(slim.nets.resnet_utils.resnet_arg_scope(is_training=False)):
-        prediction = models.get_model(FLAGS.model)(frames, audio,
+      with slim.arg_scope(slim.nets.resnet_utils.resnet_arg_scope()):
+        prediction = models.get_model(FLAGS.model)(frames, audio, False,
                                                    hidden_units=FLAGS.hidden_units)
 
     # Computing MSE and Concordance values, and adding them to summary

@@ -73,10 +73,6 @@ def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40
             features = tf.reshape(features, (batch_size, seq_length, int(features.get_shape()[3])))
         else:
             features = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks)
-            # TODO review this again. Thought was:
-            # The shape of the features here is (100,3,3,456)
-            # In the resnet case it's (100,1,1,2048) and we reshape to (50,2,2048)
-            # If we want to reshape to the form (50, 2, X) from (100,3,3,208) we have to pick (50, 2, 456*9)=(50,2,4104)
             features = tf.reshape(features, (batch_size, seq_length, 9 * int(features.get_shape()[3])))
     return features
 
