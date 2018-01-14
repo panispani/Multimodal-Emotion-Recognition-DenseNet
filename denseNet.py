@@ -1,11 +1,11 @@
 import tensorflow as tf
 
 def dropout(inputs, is_training, dropout_rate):
-    if drop_rate == 0:
+    if dropout_rate == 0:
         return inputs
 
     if is_training:
-        output = tf.layers.dropout(inputs, drop_rate)
+        output = tf.layers.dropout(inputs, dropout_rate)
     else:
         output = inputs
     return output
@@ -29,7 +29,7 @@ def convolution2d(inputs, kernel_size, out_channels):
     inputs = tf.nn.conv2d(inputs, kernel, strides, 'SAME')
     return inputs
 
-def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size=3, dropout_rate=0.2):
+def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size, dropout_rate):
     """ H_l function from paper, applied between layers within the dense blocks
         Our function is therefore a composition of:
         - BN
@@ -70,7 +70,7 @@ def add_transition_layer_to_classes(inputs, is_training):
     # Is there something more to be done here? TODO
     return output
 
-def add_transition_layer(inputs, is_training, dropout_rate, reduction=1):
+def add_transition_layer(inputs, is_training, dropout_rate, reduction):
     """Perform BN + ReLU + conv2D with 1x1 kernel + 2x2 avg pooling
        ReLU is not specified in the paper but it's included in the official implementation
     """
@@ -96,7 +96,7 @@ def bottleneck(inputs, growth_rate, is_training, dropout_rate):
         output = dropout(output, is_training, dropout_rate)
     return output
 
-def add_internal_layer(inputs, growth_rate, is_training, dropout_rate):
+def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, bc_mode):
    """Perform H_l composite function for the layer and after concatenate
       input with output from composite function.
    """
@@ -116,7 +116,7 @@ def denseNet(inputs,
              growth_rate=12,
              total_blocks=3,
              dropout_rate=0.2,
-             bc_mode=False
+             bc_mode=False,
              reduction=1):
 
     """Creates the densnet model.
@@ -144,17 +144,19 @@ def denseNet(inputs,
 
     # Add 'total_blocks' blocks to the densenet
     layers_per_block = int((depth - (total_blocks + 1)) / total_blocks)
+    if bc_mode:
+        layers_per_block = layers_per_block // 2
 
     for i in range(total_blocks):
         # If this is not the first block to be added, add a transition layer before it
         if i != 0:
             with tf.variable_scope("Transition_Layer_" + str(i)):
-                densenet = add_transition_layer(densenet, is_training, reduction)
+                densenet = add_transition_layer(densenet, is_training, dropout_rate, reduction)
 
         with tf.variable_scope("Block_" + str(i)):
             for j in range(layers_per_block):
                 with tf.variable_scope("Inner_Layer_" + str(j)):
-                    densenet = add_internal_layer(densenet, growth_rate, is_training)
+                    densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, bc_mode)
 
     with tf.variable_scope("Transition_layer_to_classes"):
         densenet = add_transition_layer_to_classes(densenet, is_training)
