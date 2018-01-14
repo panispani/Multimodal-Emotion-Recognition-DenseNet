@@ -49,7 +49,7 @@ def get_video_model(video_input, is_resnet=True, is_training=True, depth=40, gro
         return denseNet(video_input, None, is_training, depth, growth_rate, total_blocks, dropout_rate, bc_mode, reduction)
 
 
-def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40, growth_rate=12, total_blocks=3, dropout_rate=0.2, bc_mode=False, reduction=1):
+def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40, growth_rate=12, total_blocks=3, dropout_rate=0.2, b_mode=False, reduction=1):
     """Creates the video model.
 
     Args:
@@ -59,6 +59,9 @@ def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40
         depth       : number of layers if we use a DenseNet
         growth_rate : growth rate if we use a DenseNet
         total_blocks: total dense blocks if we use a DenseNet
+        dropout_rate: rate of dropout, when set to 0 there is no dropout performed
+        b_mode      : whether bottleneck is used
+        reduction   : compression factor > 0 and <= 1 (equality in case of no reduction)
     Returns:
         The video model.
     """
@@ -74,7 +77,7 @@ def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40
             features, end_points = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks)
             features = tf.reshape(features, (batch_size, seq_length, int(features.get_shape()[3])))
         else:
-            features = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks, dropout_rate, bc_mode, reduction)
+            features = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks, dropout_rate, b_mode, reduction)
             features = tf.reshape(features, (batch_size, seq_length, 9 * int(features.get_shape()[3])))
     return features
 

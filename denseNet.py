@@ -96,11 +96,11 @@ def bottleneck(inputs, growth_rate, is_training, dropout_rate):
         output = dropout(output, is_training, dropout_rate)
     return output
 
-def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, bc_mode):
+def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode):
    """Perform H_l composite function for the layer and after concatenate
       input with output from composite function.
    """
-   if bc_mode:
+   if b_mode:
        output = bottleneck(inputs, growth_rate, is_training, dropout_rate)
 
    kernel_size = 3
@@ -116,7 +116,7 @@ def denseNet(inputs,
              growth_rate=12,
              total_blocks=3,
              dropout_rate=0.2,
-             bc_mode=False,
+             b_mode=False,
              reduction=1):
 
     """Creates the densnet model.
@@ -128,7 +128,7 @@ def denseNet(inputs,
         growth_rate : growth rate in the DenseNet
         total_blocks: total dense blocks in the DenseNet
         dropout_rate: rate of dropout, when set to 0 there is no dropout performed
-        bc_mode     : whether bottleneck & compression mode is used
+        b_mode      : whether bottleneck is used
         reduction   : compression factor > 0 and <= 1 (equality in case of no reduction)
     Returns:
         The densenet model.
@@ -144,7 +144,7 @@ def denseNet(inputs,
 
     # Add 'total_blocks' blocks to the densenet
     layers_per_block = int((depth - (total_blocks + 1)) / total_blocks)
-    if bc_mode:
+    if b_mode:
         layers_per_block = layers_per_block // 2
 
     for i in range(total_blocks):
@@ -156,7 +156,7 @@ def denseNet(inputs,
         with tf.variable_scope("Block_" + str(i)):
             for j in range(layers_per_block):
                 with tf.variable_scope("Inner_Layer_" + str(j)):
-                    densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, bc_mode)
+                    densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, b_mode)
 
     with tf.variable_scope("Transition_layer_to_classes"):
         densenet = add_transition_layer_to_classes(densenet, is_training)
