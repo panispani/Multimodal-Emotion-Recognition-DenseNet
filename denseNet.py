@@ -92,24 +92,24 @@ def bottleneck(inputs, growth_rate, is_training, dropout_rate):
         output = tf.contrib.layers.batch_norm(
                      inputs, scale=True, is_training=is_training, updates_collections=None)
         output = tf.nn.relu(output)
-        kernel_size = 1
         out_features = 4 * growth_rate
-        output = convolution2d(output, kernel_size, out_features)
+        output = convolution2d(output, kernel_size=1, out_features)
         output = dropout(output, is_training, dropout_rate)
     return output
 
 def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode):
-   """Perform H_l composite function, with the given `kernel_size`, for the layer
-      and afterwards concatenate input with output from composite function.
-   """
-   if b_mode:
-       output = bottleneck(inputs, growth_rate, is_training, dropout_rate)
+    """Perform H_l composite function, with the given `kernel_size`, for the layer
+       and afterwards concatenate input with output from composite function.
+    """
+    if b_mode:
+        output = bottleneck(inputs, growth_rate, is_training, dropout_rate)
+    else:
+        output = inputs
 
-   kernel_size = 3
-   output = composite_nonlinearfunction(inputs, growth_rate, is_training, kernel_size, dropout_rate)
-   # TODO axis is the dimension along which to concatate, I think this will have to change if we don't work with images
-   output = tf.concat(axis=3, values=(inputs, output))
-   return output
+    output = composite_nonlinearfunction(output, growth_rate, is_training, kernel_size=3, dropout_rate)
+    # TODO axis is the dimension along which to concatate, I think this will have to change if we don't work with images
+    output = tf.concat(axis=3, values=(inputs, output))
+    return output
 
 def denseNet(inputs,
              num_classes=None,
@@ -117,10 +117,9 @@ def denseNet(inputs,
              total_blocks=3,
              depth=40,
              growth_rate=12,
-             dropout_rate=0.2,
-             b_mode=False,
-             reduction=1,
-             initial_conv_size=3):
+             dropout_rate=0, # 0.2
+             b_mode=False,   # True
+             reduction=1):   # 0.5
     """Creates the densnet model.
     Args:
         inputs: A tensor that contains the input.
@@ -141,7 +140,7 @@ def denseNet(inputs,
     # The initial transformation is also dependent on the dataset.
     # 3x3 convolution and 7x7 convolution (Stride 2, Padding 3) + BN + ReLU + 3x3 maxpooling are used(2 stride, 3 padding) are used
     with tf.variable_scope("Initial_Convolution"):
-        densenet = convolution2d(inputs, initial_conv_size, out_features)
+        densenet = convolution2d(inputs, initial_conv_size=3, out_features)
 
     # Add 'total_blocks' blocks to the densenet
     layers_per_block = int((depth - (total_blocks + 1)) / total_blocks)
