@@ -64,7 +64,7 @@ def video_model(video_frames=None, audio_frames=None, is_training=True, is_resne
             features = tf.reshape(features, (batch_size, seq_length, int(features.get_shape()[3])))
         else:
             features = denseNet(video_input, None, is_training)
-            features = tf.reshape(features, (batch_size, seq_length, 9 * int(features.get_shape()[3])))
+            features = tf.reshape(features, (batch_size, seq_length, -1))
     return features
 
 def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_filters=40):
@@ -109,7 +109,7 @@ def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_fil
             padding='SAME',
             name='pool2')
 
-      net = tf.reshape(net, (batch_size, seq_length, num_features //2 * 4 ))
+      net = tf.reshape(net, (batch_size, seq_length, num_features // 2 * 4 ))
 
     return net
 
