@@ -41,27 +41,14 @@ def recurrent_model(net, hidden_units=256, number_of_outputs=2):
 
     return tf.reshape(prediction, (batch_size, seq_length, number_of_outputs))
 
-
-def get_video_model(video_input, is_resnet=True, is_training=True, depth=40, growth_rate=12, total_blocks=3, dropout_rate=0.2, bc_mode=False, reduction=1):
-    if is_resnet:
-        return resnet_v1.resnet_v1_50(video_input, None, is_training)
-    else:
-        return denseNet(video_input, None, is_training, depth, growth_rate, total_blocks, dropout_rate, bc_mode, reduction)
-
-
-def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40, growth_rate=12, total_blocks=3, dropout_rate=0.2, b_mode=False, reduction=1):
+def video_model(video_frames=None, audio_frames=None, is_training=True, is_resnet=False):
     """Creates the video model.
 
     Args:
         video_frames: A tensor that contains the video input.
         audio_frames: not needed (leave None).
         is_training : if the model is in training mode
-        depth       : number of layers if we use a DenseNet
-        growth_rate : growth rate if we use a DenseNet
-        total_blocks: total dense blocks if we use a DenseNet
-        dropout_rate: rate of dropout, when set to 0 there is no dropout performed
-        b_mode      : whether bottleneck is used
-        reduction   : compression factor > 0 and <= 1 (equality in case of no reduction)
+        is_resnet   : whether to use the resnet or the densenet
     Returns:
         The video model.
     """
@@ -72,12 +59,11 @@ def video_model(video_frames=None, audio_frames=None, is_training=True, depth=40
         video_input = tf.reshape(video_frames, (batch_size * seq_length, height, width, channels))
         video_input = tf.cast(video_input, tf.float32)
 
-        is_resnet = False
         if is_resnet:
-            features, end_points = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks)
+            features, end_points = resnet_v1.resnet_v1_50(video_input, None, is_training)
             features = tf.reshape(features, (batch_size, seq_length, int(features.get_shape()[3])))
         else:
-            features = get_video_model(video_input, is_resnet, is_training, depth, growth_rate, total_blocks, dropout_rate, b_mode, reduction)
+            features = denseNet(video_input, None, is_training)
             features = tf.reshape(features, (batch_size, seq_length, 9 * int(features.get_shape()[3])))
     return features
 
