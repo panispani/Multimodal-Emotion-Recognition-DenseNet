@@ -1,14 +1,15 @@
 import tensorflow as tf
 
 def dropout(inputs, is_training, dropout_rate):
+    """ Perform dropout if we are training according to the given `dropout_rate`
+    """
     if dropout_rate == 0:
         return inputs
 
     if is_training:
-        output = tf.layers.dropout(inputs, dropout_rate)
+        return tf.layers.dropout(inputs, dropout_rate)
     else:
-        output = inputs
-    return output
+        return inputs
 
 def convolution2d(inputs, kernel_size, out_channels):
     """ 2D convolution with stride 1 and given kernel_size and output channels
@@ -46,7 +47,7 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size, 
         output = dropout(output, is_training, dropout_rate)
     return output
 
-def add_transition_layer_to_classes(inputs, is_training):
+def add_transition_layer_to_classes(inputs, is_training, pool_size=7):
     """Last transition to get to classes
     - BN
     - ReLU
@@ -61,13 +62,11 @@ def add_transition_layer_to_classes(inputs, is_training):
 
     # Global average pooling
     # In the official implementation the pool_size is set to 7 or 8 according to the dataset
-    pool_size = 7
     window = [1, pool_size, pool_size, 1]
     strides = [1, pool_size, pool_size, 1]
     padding = 'VALID'
     output = tf.nn.avg_pool(output, window, strides, padding)
 
-    # Is there something more to be done here? TODO
     return output
 
 def add_transition_layer(inputs, is_training, dropout_rate, reduction):
@@ -86,6 +85,9 @@ def add_transition_layer(inputs, is_training, dropout_rate, reduction):
     return output
 
 def bottleneck(inputs, growth_rate, is_training, dropout_rate):
+    """Perform bottlenck by doing BN + ReLU + conv2D with
+       1x1 kernel and 4 * `growth_rate` features
+    """
     with tf.variable_scope("Bottleneck"):
         output = tf.contrib.layers.batch_norm(
                      inputs, scale=True, is_training=is_training, updates_collections=None)
@@ -97,8 +99,8 @@ def bottleneck(inputs, growth_rate, is_training, dropout_rate):
     return output
 
 def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode):
-   """Perform H_l composite function for the layer and after concatenate
-      input with output from composite function.
+   """Perform H_l composite function, with the given `kernel_size`, for the layer
+      and afterwards concatenate input with output from composite function.
    """
    if b_mode:
        output = bottleneck(inputs, growth_rate, is_training, dropout_rate)
@@ -112,21 +114,21 @@ def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode):
 def denseNet(inputs,
              num_classes=None,
              is_training=True,
+             total_blocks=3,
              depth=40,
              growth_rate=12,
-             total_blocks=3,
              dropout_rate=0.2,
              b_mode=False,
-             reduction=1):
-
+             reduction=1,
+             initial_conv_size=3):
     """Creates the densnet model.
     Args:
         inputs: A tensor that contains the input.
         num_classes : Number of predicted classes for classification tasks
         is_training : if the model is in training mode
+        total_blocks: total dense blocks in the DenseNet
         depth       : number of layers in the DenseNet
         growth_rate : growth rate in the DenseNet
-        total_blocks: total dense blocks in the DenseNet
         dropout_rate: rate of dropout, when set to 0 there is no dropout performed
         b_mode      : whether bottleneck is used
         reduction   : compression factor > 0 and <= 1 (equality in case of no reduction)
@@ -138,9 +140,8 @@ def denseNet(inputs,
 
     # The initial transformation is also dependent on the dataset.
     # 3x3 convolution and 7x7 convolution (Stride 2, Padding 3) + BN + ReLU + 3x3 maxpooling are used(2 stride, 3 padding) are used
-    kernel_size = 3
     with tf.variable_scope("Initial_Convolution"):
-        densenet = convolution2d(inputs, kernel_size, out_features)
+        densenet = convolution2d(inputs, initial_conv_size, out_features)
 
     # Add 'total_blocks' blocks to the densenet
     layers_per_block = int((depth - (total_blocks + 1)) / total_blocks)
