@@ -67,7 +67,7 @@ def video_model(video_frames=None, audio_frames=None, is_training=True, is_resne
             features = tf.reshape(features, (batch_size, seq_length, -1))
     return features
 
-def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_filters=40):
+def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_filters=40, is_densenet=True):
     """Creates the audio model.
 
     Args:
@@ -83,33 +83,38 @@ def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_fil
       batch_size, seq_length, num_features = audio_frames.get_shape().as_list()
       audio_input = tf.reshape(audio_frames, [batch_size * seq_length, 1, num_features, 1])
 
-      with slim.arg_scope([slim.layers.conv2d], padding='SAME'):
-        net = slim.dropout(audio_input)
-        net = slim.layers.conv2d(net, conv_filters, (1, 20))
+      if is_densenet:
+          # I think the size of the audio input is fine TODO
+          net = denseNet(audio_input, None, is_training)
+          net = tf.reshape(net, (batch_size, seq_length, -1))
+      else:
+          with slim.arg_scope([slim.layers.conv2d], padding='SAME'):
+            net = slim.dropout(audio_input)
+            net = slim.layers.conv2d(net, conv_filters, (1, 20))
 
-        # Subsampling of the signal to 8KhZ.
-        net = tf.nn.max_pool(
-            net,
-            ksize=[1, 1, 2, 1],
-            strides=[1, 1, 2, 1],
-            padding='SAME',
-            name='pool1')
+            # Subsampling of the signal to 8KhZ.
+            net = tf.nn.max_pool(
+                net,
+                ksize=[1, 1, 2, 1],
+                strides=[1, 1, 2, 1],
+                padding='SAME',
+                name='pool1')
 
-        # Original model had 400 output filters for the second conv layer
-        # but this trains much faster and achieves comparable accuracy.
-        net = slim.layers.conv2d(net, conv_filters, (1, 40))
+            # Original model had 400 output filters for the second conv layer
+            # but this trains much faster and achieves comparable accuracy.
+            net = slim.layers.conv2d(net, conv_filters, (1, 40))
 
-        net = tf.reshape(net, (batch_size * seq_length, num_features // 2, conv_filters, 1))
+            net = tf.reshape(net, (batch_size * seq_length, num_features // 2, conv_filters, 1))
 
-        # Pooling over the feature maps.
-        net = tf.nn.max_pool(
-            net,
-            ksize=[1, 1, 10, 1],
-            strides=[1, 1, 10, 1],
-            padding='SAME',
-            name='pool2')
+            # Pooling over the feature maps.
+            net = tf.nn.max_pool(
+                net,
+                ksize=[1, 1, 10, 1],
+                strides=[1, 1, 10, 1],
+                padding='SAME',
+                name='pool2')
 
-      net = tf.reshape(net, (batch_size, seq_length, num_features // 2 * 4 ))
+          net = tf.reshape(net, (batch_size, seq_length, num_features // 2 * 4 ))
 
     return net
 

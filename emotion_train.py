@@ -28,7 +28,7 @@ tf.app.flags.DEFINE_integer('hidden_units', 256,
 tf.app.flags.DEFINE_integer('seq_length', 2,
 			    'The number of consecutive examples to be used'
 			    'in the recurrent model')
-tf.app.flags.DEFINE_string('model', 'video',
+tf.app.flags.DEFINE_string('model', 'audio',
                            'Which model is going to be used: audio, video, or both ')
 tf.app.flags.DEFINE_string('dataset_dir', 'tf_records',
                            'The tfrecords directory.')

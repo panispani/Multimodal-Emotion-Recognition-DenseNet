@@ -93,7 +93,8 @@ def bottleneck(inputs, growth_rate, is_training, dropout_rate):
                      inputs, scale=True, is_training=is_training, updates_collections=None)
         output = tf.nn.relu(output)
         out_features = 4 * growth_rate
-        output = convolution2d(output, kernel_size=1, out_features)
+        kernel_size = 1
+        output = convolution2d(output, kernel_size, out_features)
         output = dropout(output, is_training, dropout_rate)
     return output
 
@@ -106,8 +107,11 @@ def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode):
     else:
         output = inputs
 
-    output = composite_nonlinearfunction(output, growth_rate, is_training, kernel_size=3, dropout_rate)
+    kernel_size = 3
+    output = composite_nonlinearfunction(output, growth_rate, is_training, kernel_size, dropout_rate)
     # TODO axis is the dimension along which to concatate, I think this will have to change if we don't work with images
+    # This is the issue, here we want shared buffers, not yet implemented in Tensorflow yet
+    # See relevant issue in repo: https://github.com/tensorflow/tensorflow/issues/12948
     output = tf.concat(axis=3, values=(inputs, output))
     return output
 
@@ -140,7 +144,8 @@ def denseNet(inputs,
     # The initial transformation is also dependent on the dataset.
     # 3x3 convolution and 7x7 convolution (Stride 2, Padding 3) + BN + ReLU + 3x3 maxpooling are used(2 stride, 3 padding) are used
     with tf.variable_scope("Initial_Convolution"):
-        densenet = convolution2d(inputs, initial_conv_size=3, out_features)
+        initial_conv_size = 3
+        densenet = convolution2d(inputs, initial_conv_size, out_features)
 
     # Add 'total_blocks' blocks to the densenet
     layers_per_block = int((depth - (total_blocks + 1)) / total_blocks)
