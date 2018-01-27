@@ -87,9 +87,9 @@ def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_fil
           audio_input = tf.reshape(audio_frames, [batch_size * seq_length, num_features // 8 , 8, 1])
           # Arguments:
           # (inputs,num_classes,is_training,total_blocks,depth
-          # growth_rate,dropout_rate,b_mode,reduction,pool_size)
+          # growth_rate,dropout_rate,b_mode,reduction,pool,final_pool,is_audio)
           net = denseNet(audio_input, None, is_training,
-                         1, 3, 12, 0.2, False, 0.5, 2)
+                         1, 3, 12, 0.2, False, 0.5, (1, 2), (1, 2), True)
           net = tf.reshape(net, (batch_size, seq_length, -1))
       else:
           audio_input = tf.reshape(audio_frames, [batch_size * seq_length, 1, num_features, 1])

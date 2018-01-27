@@ -11,7 +11,7 @@ def dropout(inputs, is_training, dropout_rate):
     else:
         return inputs
 
-def convolution2d(inputs, kernel_size, out_channels):
+def convolution2d(inputs, kernel_size, out_channels, is_audio):
     """ 2D convolution with stride 1 and given kernel_size and output channels
 
     Args:
@@ -21,6 +21,11 @@ def convolution2d(inputs, kernel_size, out_channels):
     Returns:
         Tensor containing output volume.
     """
+    # Special 1D convolution in case of audio
+    if is_audio:
+        inputs = slim.layers.conv2d(inputs, out_channels, (1, kernel_size))
+        return inputs
+
     strides = [1, 1, 1, 1]
     in_channels = int(inputs.get_shape()[-1])
     kernel = tf.get_variable(
@@ -30,7 +35,7 @@ def convolution2d(inputs, kernel_size, out_channels):
     inputs = tf.nn.conv2d(inputs, kernel, strides, 'SAME')
     return inputs
 
-def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size, dropout_rate):
+def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size, dropout_rate, is_audio):
     """ H_l function from paper, applied between layers within the dense blocks
         Our function is therefore a composition of:
         - BN
@@ -43,11 +48,11 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size, 
         output = tf.contrib.layers.batch_norm(
                      inputs, scale=True, is_training=is_training, updates_collections=None)
         output = tf.nn.relu(output)
-        output = convolution2d(output, kernel_size, out_channels)
+        output = convolution2d(output, kernel_size, out_channels, is_audio)
         output = dropout(output, is_training, dropout_rate)
     return output
 
-def add_transition_layer_to_classes(inputs, is_training, pool_size):
+def add_transition_layer_to_classes(inputs, is_training, (final_pool_x, final_pool_y)):
     """Last transition to get to classes
     - BN
     - ReLU
@@ -62,29 +67,29 @@ def add_transition_layer_to_classes(inputs, is_training, pool_size):
 
     # Global average pooling
     # In the official implementation the pool_size is set to 7 or 8 according to the dataset
-    window = [1, pool_size, pool_size, 1]
-    strides = [1, pool_size, pool_size, 1]
+    window = [1, final_pool_x, final_pool_y, 1]
+    strides = [1, final_pool_x, final_pool_y, 1]
     padding = 'VALID'
     output = tf.nn.avg_pool(output, window, strides, padding)
 
     return output
 
-def add_transition_layer(inputs, is_training, dropout_rate, reduction):
+def add_transition_layer(inputs, is_training, dropout_rate, reduction, (pool_x, pool_y), is_audio):
     """Perform BN + ReLU + conv2D with 1x1 kernel + 2x2 avg pooling
        ReLU is not specified in the paper but it's included in the official implementation
     """
     # reduction rate is 1 if compression is not performed
     out_features = int(int(inputs.get_shape()[-1]) * reduction)
-    output = composite_nonlinearfunction(inputs, out_features, is_training, 1, dropout_rate)
+    output = composite_nonlinearfunction(inputs, out_features, is_training, 1, dropout_rate, is_audio)
 
-    # 2 x 2 average pooling
-    window = [1, 2, 2, 1]
-    strides = [1, 2, 2, 1]
+    # average pooling
+    window = [1, pool_x, pool_y, 1]
+    strides = [1, pool_x, pool_y, 1]
     padding = 'VALID'
     output = tf.nn.avg_pool(output, window, strides, padding)
     return output
 
-def bottleneck(inputs, growth_rate, is_training, dropout_rate):
+def bottleneck(inputs, growth_rate, is_training, dropout_rate, is_audio):
     """Perform bottlenck by doing BN + ReLU + conv2D with
        1x1 kernel and 4 * `growth_rate` features
     """
@@ -94,16 +99,16 @@ def bottleneck(inputs, growth_rate, is_training, dropout_rate):
         output = tf.nn.relu(output)
         out_features = 4 * growth_rate
         kernel_size = 1
-        output = convolution2d(output, kernel_size, out_features)
+        output = convolution2d(output, kernel_size, out_features, is_audio)
         output = dropout(output, is_training, dropout_rate)
     return output
 
-def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode):
+def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode, is_audio):
     """Perform H_l composite function, with the given `kernel_size`, for the layer
        and afterwards concatenate input with output from composite function.
     """
     if b_mode:
-        output = bottleneck(inputs, growth_rate, is_training, dropout_rate)
+        output = bottleneck(inputs, growth_rate, is_training, dropout_rate, is_audio)
     else:
         output = inputs
 
@@ -121,10 +126,12 @@ def denseNet(inputs,
              total_blocks=3,
              depth=40,
              growth_rate=12,
-             dropout_rate=0,   # 0.2
+             dropout_rate=0,     # 0.2
              b_mode=False,
-             reduction=1,      # 0.5
-             pool_size=7):
+             reduction=1,        # 0.5
+             pool=(2, 2)
+             final_pool=(7, 7),  # (1, 2) for sound
+             is_audio=False):    # Performs special 1D convolution
     """Creates the densnet model.
     Args:
         inputs: A tensor that contains the input.
@@ -136,7 +143,9 @@ def denseNet(inputs,
         dropout_rate: rate of dropout, when set to 0 there is no dropout performed
         b_mode      : whether bottleneck is used
         reduction   : compression factor > 0 and <= 1 (equality in case of no reduction)
-        pool_size   : transitioning to classes global average pooling size
+        pool        : in between blocks average pooling window size
+        final_pool  : transitioning to classes global average pooling window size
+        is_audio    : Option to perform special 1D convolution
     Returns:
         The densenet model.
     """
@@ -147,7 +156,7 @@ def denseNet(inputs,
     # 3x3 convolution and 7x7 convolution (Stride 2, Padding 3) + BN + ReLU + 3x3 maxpooling are used(2 stride, 3 padding) are used
     with tf.variable_scope("Initial_Convolution"):
         initial_conv_size = 3
-        densenet = convolution2d(inputs, initial_conv_size, out_features)
+        densenet = convolution2d(inputs, initial_conv_size, out_features, is_audio)
 
     # Add 'total_blocks' blocks to the densenet
     layers_per_block = int((depth - (total_blocks + 1)) / total_blocks)
@@ -158,13 +167,13 @@ def denseNet(inputs,
         # If this is not the first block to be added, add a transition layer before it
         if i != 0:
             with tf.variable_scope("Transition_Layer_" + str(i)):
-                densenet = add_transition_layer(densenet, is_training, dropout_rate, reduction)
+                densenet = add_transition_layer(densenet, is_training, dropout_rate, reduction, is_audio)
 
         with tf.variable_scope("Block_" + str(i)):
             for j in range(layers_per_block):
                 with tf.variable_scope("Inner_Layer_" + str(j)):
-                    densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, b_mode)
+                    densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, b_mode, pool, is_audio)
 
     with tf.variable_scope("Transition_layer_to_classes"):
-        densenet = add_transition_layer_to_classes(densenet, is_training, pool_size)
+        densenet = add_transition_layer_to_classes(densenet, is_training, pool_size, final_pool)
     return densenet
