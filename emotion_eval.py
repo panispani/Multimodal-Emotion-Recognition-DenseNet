@@ -29,24 +29,26 @@ tf.app.flags.DEFINE_integer('batch_size', 1, 'The batch size to use.')
 tf.app.flags.DEFINE_string('model', 'audio','Which model is going to be used: audio, video, or both ')
 tf.app.flags.DEFINE_string('dataset_dir', 'tf_records', 'The tfrecords directory.')
 tf.app.flags.DEFINE_string('checkpoint_dir', 'ckpt/train', 'The directory that contains the saved model.')
-tf.app.flags.DEFINE_string('log_dir', 'ckpt/log/'+portion, 'The directory to save log files.')
+tf.app.flags.DEFINE_string('log_dir', 'ckpt/log/' + portion, 'The directory to save log files.')
 tf.app.flags.DEFINE_integer('num_examples', num_examples, 'The number of examples in the data set')
 tf.app.flags.DEFINE_integer('hidden_units', 256, 'The number of hidden units in the recurrent model')
-tf.app.flags.DEFINE_integer('seq_length', 150, 
+tf.app.flags.DEFINE_integer('seq_length', 150,
                             'The number of consecutive examples to be used in the recurrent model')
 tf.app.flags.DEFINE_string('eval_interval_secs', 300, 'How often to run the evaluation (in sec).')
 tf.app.flags.DEFINE_string('portion', portion, 'The portion (train, valid, test) to use for evaluation')
 
 def evaluate(data_folder):
   """Evaluates the model (audio/video/both).
-  
+
   Args:
      data_folder: The folder that contains the data to evaluate the model.
   """
-  
+
   g = tf.Graph()
   with g.as_default():
-
+   config = tf.ConfigProto()
+   config.gpu_options.allow_growth = True
+   with tf.Session(config=config) as sess:
     # Load dataset.
     frames, audio, ground_truth,_ = data_provider.get_split(data_folder, False,
                                                        FLAGS.portion, FLAGS.batch_size,

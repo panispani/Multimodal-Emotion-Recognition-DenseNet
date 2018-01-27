@@ -67,7 +67,9 @@ def train(data_folder):
         optimizer = tf.train.AdamOptimizer(FLAGS.initial_learning_rate)
 
         init_fn = None
-        with tf.Session(graph=g) as sess:
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        with tf.Session(graph=g, config=config) as sess:
             if FLAGS.pretrained_model_checkpoint_path:
 		# Need to specify which variables to restore (use scope of models)
                 variables_to_restore = slim.get_variables()
