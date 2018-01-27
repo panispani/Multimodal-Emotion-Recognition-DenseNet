@@ -89,7 +89,7 @@ def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_fil
           # (inputs,num_classes,is_training,total_blocks,depth
           # growth_rate,dropout_rate,b_mode,reduction,pool,final_pool,is_audio)
           net = denseNet(audio_input, None, is_training,
-                         1, 3, 12, 0.2, False, 0.5, (1, 2), (1, 2), True)
+                         1, 5, 12, 0.2, False, 1, (1, 2), (1, 2), True)
           net = tf.reshape(net, (batch_size, seq_length, -1))
       else:
           with slim.arg_scope([slim.layers.conv2d], padding='SAME'):

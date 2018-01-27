@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+slim = tf.contrib.slim
+
 def dropout(inputs, is_training, dropout_rate):
     """ Perform dropout if we are training according to the given `dropout_rate`
     """
@@ -52,7 +54,7 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size, 
         output = dropout(output, is_training, dropout_rate)
     return output
 
-def add_transition_layer_to_classes(inputs, is_training, (final_pool_x, final_pool_y)):
+def add_transition_layer_to_classes(inputs, is_training, final_pool_x, final_pool_y):
     """Last transition to get to classes
     - BN
     - ReLU
@@ -74,7 +76,7 @@ def add_transition_layer_to_classes(inputs, is_training, (final_pool_x, final_po
 
     return output
 
-def add_transition_layer(inputs, is_training, dropout_rate, reduction, (pool_x, pool_y), is_audio):
+def add_transition_layer(inputs, is_training, dropout_rate, reduction, pool_x, pool_y, is_audio):
     """Perform BN + ReLU + conv2D with 1x1 kernel + 2x2 avg pooling
        ReLU is not specified in the paper but it's included in the official implementation
     """
@@ -113,7 +115,7 @@ def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode, i
         output = inputs
 
     kernel_size = 3
-    output = composite_nonlinearfunction(output, growth_rate, is_training, kernel_size, dropout_rate)
+    output = composite_nonlinearfunction(output, growth_rate, is_training, kernel_size, dropout_rate, is_audio)
     # TODO axis is the dimension along which to concatate, I think this will have to change if we don't work with images
     # This is the issue of high memory usage, here we want shared buffers, not yet implemented in Tensorflow yet
     # See relevant issue in repo: https://github.com/tensorflow/tensorflow/issues/12948
@@ -129,7 +131,7 @@ def denseNet(inputs,
              dropout_rate=0,     # 0.2
              b_mode=False,
              reduction=1,        # 0.5
-             pool=(2, 2)
+             pool=(2, 2),
              final_pool=(7, 7),  # (1, 2) for sound
              is_audio=False):    # Performs special 1D convolution
     """Creates the densnet model.
@@ -167,13 +169,13 @@ def denseNet(inputs,
         # If this is not the first block to be added, add a transition layer before it
         if i != 0:
             with tf.variable_scope("Transition_Layer_" + str(i)):
-                densenet = add_transition_layer(densenet, is_training, dropout_rate, reduction, is_audio)
+                densenet = add_transition_layer(densenet, is_training, dropout_rate, reduction, *pool, is_audio)
 
         with tf.variable_scope("Block_" + str(i)):
             for j in range(layers_per_block):
                 with tf.variable_scope("Inner_Layer_" + str(j)):
-                    densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, b_mode, pool, is_audio)
+                    densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, b_mode, is_audio)
 
     with tf.variable_scope("Transition_layer_to_classes"):
-        densenet = add_transition_layer_to_classes(densenet, is_training, pool_size, final_pool)
+        densenet = add_transition_layer_to_classes(densenet, is_training, *final_pool)
     return densenet
