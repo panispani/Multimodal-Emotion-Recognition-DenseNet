@@ -16,7 +16,7 @@ slim = tf.contrib.slim
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_float('initial_learning_rate', 0.0001, 'Initial learning rate.')
 tf.app.flags.DEFINE_float('learning_rate_decay_factor', 0.97, 'Learning rate decay factor.')
-tf.app.flags.DEFINE_integer('batch_size', 50, 'The batch size to use.')
+tf.app.flags.DEFINE_integer('batch_size', 2, 'The batch size to use.')
 tf.app.flags.DEFINE_string('train_dir', 'ckpt/train',
                            'Directory where to write event logs '
                            'and checkpoint.')
@@ -25,7 +25,7 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', '',
                            'before beginning any training.')
 tf.app.flags.DEFINE_integer('hidden_units', 256,
 			    'The number of hidden units in the recurrent model')
-tf.app.flags.DEFINE_integer('seq_length', 2,
+tf.app.flags.DEFINE_integer('seq_length', 150,
 			    'The number of consecutive examples to be used'
 			    'in the recurrent model')
 tf.app.flags.DEFINE_string('model', 'audio',

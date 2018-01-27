@@ -75,19 +75,24 @@ def audio_model(video_frames=None, audio_frames=None, is_training=None, conv_fil
         audio_frames: A tensor that contains the audio input.
         is_training : if the model is in training mode
         conv_filters: The number of convolutional filters to use.
+        is_densenet : Whether the densenet should be used or not
     Returns:
         The audio model.
     """
 
     with tf.variable_scope("audio_model"):
       batch_size, seq_length, num_features = audio_frames.get_shape().as_list()
-      audio_input = tf.reshape(audio_frames, [batch_size * seq_length, 1, num_features, 1])
-
       if is_densenet:
           # I think the size of the audio input is fine TODO
-          net = denseNet(audio_input, None, is_training)
+          audio_input = tf.reshape(audio_frames, [batch_size * seq_length, num_features // 8 , 8, 1])
+          # Arguments:
+          # (inputs,num_classes,is_training,total_blocks,depth
+          # growth_rate,dropout_rate,b_mode,reduction,pool_size)
+          net = denseNet(audio_input, None, is_training,
+                         1, 3, 12, 0.2, False, 0.5, 2)
           net = tf.reshape(net, (batch_size, seq_length, -1))
       else:
+          audio_input = tf.reshape(audio_frames, [batch_size * seq_length, 1, num_features, 1])
           with slim.arg_scope([slim.layers.conv2d], padding='SAME'):
             net = slim.dropout(audio_input)
             net = slim.layers.conv2d(net, conv_filters, (1, 20))

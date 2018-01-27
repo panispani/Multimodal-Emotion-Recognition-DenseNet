@@ -47,7 +47,7 @@ def composite_nonlinearfunction(inputs, out_channels, is_training, kernel_size, 
         output = dropout(output, is_training, dropout_rate)
     return output
 
-def add_transition_layer_to_classes(inputs, is_training, pool_size=7):
+def add_transition_layer_to_classes(inputs, is_training, pool_size):
     """Last transition to get to classes
     - BN
     - ReLU
@@ -110,7 +110,7 @@ def add_internal_layer(inputs, growth_rate, is_training, dropout_rate, b_mode):
     kernel_size = 3
     output = composite_nonlinearfunction(output, growth_rate, is_training, kernel_size, dropout_rate)
     # TODO axis is the dimension along which to concatate, I think this will have to change if we don't work with images
-    # This is the issue, here we want shared buffers, not yet implemented in Tensorflow yet
+    # This is the issue of high memory usage, here we want shared buffers, not yet implemented in Tensorflow yet
     # See relevant issue in repo: https://github.com/tensorflow/tensorflow/issues/12948
     output = tf.concat(axis=3, values=(inputs, output))
     return output
@@ -121,9 +121,10 @@ def denseNet(inputs,
              total_blocks=3,
              depth=40,
              growth_rate=12,
-             dropout_rate=0, # 0.2
-             b_mode=False,   # True
-             reduction=1):   # 0.5
+             dropout_rate=0,   # 0.2
+             b_mode=False,
+             reduction=1,      # 0.5
+             pool_size=7):
     """Creates the densnet model.
     Args:
         inputs: A tensor that contains the input.
@@ -135,6 +136,7 @@ def denseNet(inputs,
         dropout_rate: rate of dropout, when set to 0 there is no dropout performed
         b_mode      : whether bottleneck is used
         reduction   : compression factor > 0 and <= 1 (equality in case of no reduction)
+        pool_size   : transitioning to classes global average pooling size
     Returns:
         The densenet model.
     """
@@ -164,5 +166,5 @@ def denseNet(inputs,
                     densenet = add_internal_layer(densenet, growth_rate, is_training, dropout_rate, b_mode)
 
     with tf.variable_scope("Transition_layer_to_classes"):
-        densenet = add_transition_layer_to_classes(densenet, is_training)
+        densenet = add_transition_layer_to_classes(densenet, is_training, pool_size)
     return densenet
