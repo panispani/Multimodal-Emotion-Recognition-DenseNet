@@ -73,6 +73,10 @@ def get_split(dataset_dir, is_training=True, split_name='train', batch_size=32,
             audio_samples = tf.identity(audio_samples)
 
     audio_samples = tf.expand_dims(audio_samples, 0)
+    # Add 0.2 Gaussian noise
+    noise = tf.random_normal(shape=tf.shape(audio_samples), mean=0.0, stddev=.2, dtype=tf.float32)
+    audio_samples = audio_samples + noise
+
     labels = tf.expand_dims(labels, 0)
     frames = tf.expand_dims(frames, 0)
 
