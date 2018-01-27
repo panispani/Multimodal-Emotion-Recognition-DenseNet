@@ -1,3 +1,3 @@
 #!/bin/bash
-rm -fv ckpt/train
-rm -fv ckpt/log
+rm -rfv ckpt/train/*
+rm -fv ckpt/log/*
